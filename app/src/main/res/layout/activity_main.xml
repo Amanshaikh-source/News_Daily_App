@@ -15,7 +15,25 @@
         android:layout_alignParentTop="true"
         android:background="?attr/colorPrimary"
         android:minHeight="?attr/actionBarSize"
-        android:theme="?attr/actionBarTheme" />
+        android:theme="?attr/actionBarTheme">
+
+    <TextView
+        android:id="@+id/tvLastUpdated"
+        android:layout_width="67dp"
+        android:layout_height="wrap_content"
+        android:text="Last updated"
+        android:textColor="@android:color/black"
+        android:textSize="12sp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="4dp"/>
+    </androidx.appcompat.widget.Toolbar>
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/toolbar" >
+
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_recyclerView"
@@ -26,10 +44,12 @@
         android:layout_marginTop="4dp"
         android:layout_marginEnd="4dp"
         android:layout_marginBottom="4dp"
-        android:layout_below="@+id/toolbar"
+        android:layout_below="@+id/swipeRefreshLayout"
         tools:itemCount="17"
         tools:listitem="@layout/item_layout"
         android:scrollbars="vertical"/>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 
 </RelativeLayout>
