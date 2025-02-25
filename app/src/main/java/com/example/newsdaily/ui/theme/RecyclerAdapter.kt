@@ -3,6 +3,7 @@ package com.example.newsdaily.ui.theme
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,18 +12,9 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat.startActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.Priority
 import com.example.newsdaily.R
 
-class RecyclerAdapter(
-    private var titles: List<String>,
-    private var details: List<String>,
-    private var images: List<String>,
-    private var links: List<String>,
-    private var pulished : List<String>,
-    private var author : List<String>,
-    private var content :List<String>
-) :
+class RecyclerAdapter(private var newsList: List<New>) :
     RecyclerView.Adapter<RecyclerAdapter.ViewHolder>() {
 
     inner class ViewHolder(itemView: View) :
@@ -38,11 +30,12 @@ class RecyclerAdapter(
         //takes care of click events
         init {
             itemView.setOnClickListener { v: View ->
-                val position: Int = adapterPosition
-
-                val intent = Intent(Intent.ACTION_VIEW)
-                intent.data = Uri.parse(links[position])
-                startActivity(itemView.context, intent, null)
+                val position = adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val newsItem = newsList[position]
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(newsItem.url))
+                    startActivity(itemView.context, intent, null)
+                }
             }
         }
     }
@@ -53,19 +46,37 @@ class RecyclerAdapter(
         return ViewHolder(v)
     }
 
-    override fun getItemCount(): Int {
-        return titles.size
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+
+        val newsItem = newsList[position]
+
+        Log.d("IMAGE_DEBUG", "Image URL: ${newsItem.urlToImage}")
+        Log.d("AUTHOR_DEBUG","Author: ${newsItem.author}")
+
+        holder.itemTitle.text = newsItem.title ?: "No Title Available"
+        holder.itemDetail.text = newsItem.description ?: "No Description Available"
+        holder.itempublished.text = newsItem.publishedAt ?: "No Date Available"
+        holder.itemauthor.text = newsItem.author ?: "Unknown Author"
+        holder.itemcontent.text = newsItem.content ?: "No Content Available"
+
+
+        if (!newsItem.urlToImage.isNullOrEmpty()) {
+            Glide.with(holder.itemView.context)
+                .load(newsItem.urlToImage)
+                .placeholder(R.drawable.placeholder_image)
+                .error(R.drawable.error)
+                .override(600, 400)
+                .into(holder.itemPicture)
+        }else {
+            holder.itemPicture.setImageResource(R.drawable.placeholder_image)
+        }
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.itemTitle.text = titles[position]
-        holder.itemDetail.text = details[position]
-        holder.itempublished.text = pulished[position]
-        holder.itemauthor.text = author[position]
-        holder.itemcontent.text = content[position]
 
-        Glide.with(holder.itemPicture)
-            .load(images[position])
-            .into(holder.itemPicture)
+    override fun getItemCount(): Int = newsList.size
+
+    fun updateData(newsList: List<New>) {
+        this.newsList = newsList
+        notifyDataSetChanged()
     }
 }

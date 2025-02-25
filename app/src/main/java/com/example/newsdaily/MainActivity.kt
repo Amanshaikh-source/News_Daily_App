@@ -1,159 +1,72 @@
-package com.example.newsdaily
+    package com.example.newsdaily
 
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.CountDownTimer
-import android.util.Log
-import android.view.View
-import android.widget.ProgressBar
-import android.widget.TextView
-import androidx.appcompat.widget.Toolbar
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.example.newsdaily.ui.theme.APIRequest
-import com.example.newsdaily.ui.theme.RecyclerAdapter
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-
-//const val BASE_URL = "https://api.currentsapi.services"
-const val BASE_URL = "https://newsapi.org"
-
-class MainActivity : AppCompatActivity() {
-
-    lateinit var countdownTimer: CountDownTimer
-    private var seconds = 2L
-
-    private var titlesList = mutableListOf<String>()
-    private var descList = mutableListOf<String>()
-    private var imagesList = mutableListOf<String>()
-    private var linksList = mutableListOf<String>()
-    private var publishedList = mutableListOf<String>()
-    private var authorList = mutableListOf<String>()
-    private var contentList = mutableListOf<String>()
+    import androidx.appcompat.app.AppCompatActivity
+    import android.os.Bundle
+    import android.util.Log
+    import androidx.appcompat.widget.Toolbar
+    import androidx.recyclerview.widget.LinearLayoutManager
+    import androidx.recyclerview.widget.RecyclerView
+    import com.example.newsdaily.ui.theme.ApiClient
+    import com.example.newsdaily.ui.theme.ApiService
+    import com.example.newsdaily.ui.theme.New
+    import com.example.newsdaily.ui.theme.NewsResponse
+    import com.example.newsdaily.ui.theme.RecyclerAdapter
+    import kotlinx.coroutines.CoroutineScope
+    import kotlinx.coroutines.Dispatchers
+    import kotlinx.coroutines.launch
+    import kotlinx.coroutines.withContext
+    import retrofit2.Call
+    import retrofit2.Response
 
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+    class MainActivity : AppCompatActivity() {
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.title = "Daily News"
-        toolbar.setSubtitle("Powered By Aman Shaikh")
-        makeAPIRequest()
-    }
+        private lateinit var adapter: RecyclerAdapter
+        private lateinit var recyclerView: RecyclerView
+        private val newsList = mutableListOf<New>()
 
-    //simple fade in animation for when the app is done loading
-    private fun fadeIn() {
-        val v_blackScreen = findViewById<View>(R.id.v_blackScreen)
-        v_blackScreen.animate().apply {
-            alpha(0f)
-            duration = 2000
-        }.start()
-    }
 
-    //requests data from the api and forwards it to the recycler view
-    private fun makeAPIRequest() {
-        val progressBar = findViewById<ProgressBar>(R.id.progressBar)
-        progressBar.visibility = View.VISIBLE
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            setContentView(R.layout.activity_main)
 
-        val api = Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(APIRequest::class.java)
+            val toolbar = findViewById<Toolbar>(R.id.toolbar)
+            setSupportActionBar(toolbar)
+            supportActionBar?.title = "Daily News"
+            toolbar.setSubtitle("Powered By Aman Shaikh")
 
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                val response = api.getNews()
+            recyclerView = findViewById(R.id.rv_recyclerView)
+            recyclerView.layoutManager = LinearLayoutManager(this)
 
-                for (article in response.articles) {
-                    Log.d("MainActivity", "Result + $article")
-                    addToList(
-                        article.title,
-                        article.description,
-                        article.urlToImage,
-                        article.url,
-                        article.publishedAt,
-                        article.author,
-                        article.content
-                    )
-                }
+            adapter = RecyclerAdapter(newsList)
+            recyclerView.adapter = adapter
 
-                //updates ui when data has been retrieved
-                withContext(Dispatchers.Main) {
-                    setUpRecyclerView()
-                    fadeIn()
-                    progressBar.visibility = View.GONE
-                }
-            } catch (e: Exception) {
-                Log.d("MainActivity", e.toString())
-                withContext(Dispatchers.Main) {
-                    attemptRequestAgain(seconds)
-
-                }
-            }
-
+            fetchnews()
         }
-    }
 
-    private fun attemptRequestAgain(seconds: Long) {
-        val tv_noInternetCountDown = findViewById<TextView>(R.id.tv_noInternetCountDown)
-        countdownTimer = object : CountDownTimer(seconds * 1010, 1000) {
-            override fun onFinish() {
-                makeAPIRequest()
-                countdownTimer.cancel()
-                tv_noInternetCountDown.visibility = View.GONE
-                this@MainActivity.seconds += 0
-            }
+             private fun fetchnews() {
+                val apiService = ApiClient.retrofit.create(ApiService::class.java)
+                // val apikey = "28917706-fd55-472c-bd23-67e9d787ea76"
+                CoroutineScope(Dispatchers.IO).launch { // Run in background thread
+                    try {
+                        val response = apiService.getTopHeadlines("7ded0c30f3cffbccdd0cfa3f501e5c9a")
 
-            override fun onTick(millisUntilFinished: Long) {
-                tv_noInternetCountDown.visibility = View.VISIBLE
-                tv_noInternetCountDown.text =
-                    "Cannot retrieve data...\nTrying again in: ${millisUntilFinished / 1000}"
-                Log.d(
-                    "MainActivity",
-                    "Could not retrieve data. Trying again in ${millisUntilFinished / 1000} seconds"
-                )
-            }
+                        withContext(Dispatchers.Main) { // Switch to main thread for UI updates
+                            if (response.isSuccessful) {
+                                val newsResponse = response.body()
+                                newsResponse?.let {
+                                    newsList.clear()
+                                    newsList.addAll(it.articles)
+                                    adapter.updateData(newsList)
+                                }
+                            } else {
+                                Log.e("API_ERROR", "Error Code: ${response.code()}, Message: ${response.errorBody()?.string()}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("NETWORK_ERROR", "Exception: ${e.message}")
+                    }
+                }
         }
-        countdownTimer.start()
-    }
 
-    private fun setUpRecyclerView() {
-        val rv_recyclerView = findViewById<RecyclerView>(R.id.rv_recyclerView)
-        rv_recyclerView.layoutManager = LinearLayoutManager(applicationContext)
-        rv_recyclerView.adapter = RecyclerAdapter(
-            titlesList,
-            descList,
-            imagesList,
-            linksList,
-            publishedList,
-            authorList,
-            contentList
-        )
     }
-
-    //adds the items to our recyclerview
-    private fun addToList(
-        title: String,
-        description: String,
-        image: String,
-        link: String,
-        publishedAT: String,
-        author: String,
-        content: String
-    ) {
-        linksList.add(link)
-        titlesList.add(title)
-        descList.add(description)
-        imagesList.add(image)
-        publishedList.add(publishedAT)
-        authorList.add(author)
-        contentList.add(content)
-    }
-}
